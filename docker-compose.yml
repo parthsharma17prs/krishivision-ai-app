@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEMO_MODE=true
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///./krishivision.db
+      - WEATHER_PROVIDER=demo
+      - ASSISTANT_PROVIDER=demo
+    volumes:
+      - ./uploads:/app/backend/uploads
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
