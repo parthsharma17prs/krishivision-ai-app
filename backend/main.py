@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -10,6 +10,13 @@ from app.api import auth, farms, dashboard, analysis, irrigation, weather, risk,
 
 # Create DB tables if not existing
 Base.metadata.create_all(bind=engine)
+
+# Seed demo data if database is empty
+try:
+    from data.seeds.seed_demo_data import seed_data
+    seed_data()
+except Exception as e:
+    print(f"Seed info notice: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -66,15 +73,35 @@ app.include_router(edge.router, prefix=settings.API_V1_STR)
 def health_check():
     return {"status": "ok", "service": "krishivision-cloud-api", "version": "1.0.0"}
 
-@app.get("/")
-def root():
-    return {
-        "title": settings.PROJECT_NAME,
-        "status": "online",
-        "docs": "/docs",
-        "demo_mode": settings.DEMO_MODE
-    }
+# Mount built React frontend static files (for Railway / single-port production deployments)
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+if os.path.exists(frontend_dist):
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("uploads/") or full_path == "health" or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            return JSONResponse(status_code=404, content={"detail": "API endpoint not found"})
+        
+        file_path = os.path.join(frontend_dist, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {
+            "title": settings.PROJECT_NAME,
+            "status": "online",
+            "docs": "/docs",
+            "demo_mode": settings.DEMO_MODE
+        }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
