@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.db.session import engine, Base
-from app.api import auth, farms, dashboard, analysis, irrigation, weather, risk, sensors, assistant, reports, system
+from app.api import auth, farms, dashboard, analysis, irrigation, weather, risk, sensors, assistant, reports, system, live_feed, edge
 
 # Create DB tables if not existing
 Base.metadata.create_all(bind=engine)
@@ -53,12 +53,18 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(farms.router, prefix=settings.API_V1_STR)
 app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 app.include_router(analysis.router, prefix=settings.API_V1_STR)
+app.include_router(live_feed.router, prefix=settings.API_V1_STR)
 app.include_router(irrigation.router, prefix=settings.API_V1_STR)
 app.include_router(weather.router, prefix=settings.API_V1_STR)
 app.include_router(risk.router, prefix=settings.API_V1_STR)
 app.include_router(sensors.router, prefix=settings.API_V1_STR)
 app.include_router(assistant.router, prefix=settings.API_V1_STR)
 app.include_router(reports.router, prefix=settings.API_V1_STR)
+app.include_router(edge.router, prefix=settings.API_V1_STR)
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "krishivision-cloud-api", "version": "1.0.0"}
 
 @app.get("/")
 def root():

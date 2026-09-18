@@ -29,6 +29,8 @@ The system is designed to operate seamlessly in both online production environme
 | Feature | Description | Status |
 |---|---|---|
 | **AI Plant Doctor** | Two-stage vision pipeline: YOLOv11 locates leaf regions of interest (ROI) and Vision Transformer (ViT Base Patch16 224) classifies disease severity on the PlantDoc benchmark (30 classes across 13 species) with Grad-CAM attention heatmaps. | `LOCAL AI` / `DEMO` |
+| **Edge AI Station** | 100% on-device local runtime executing MobileNetV2 ONNX inference, asynchronous multi-engine decision tree, and SQLite offline sync queue without cloud roundtrip. | `LIVE (100% LOCAL)` |
+| **Live Image Dashboard** | Automated 10-second camera/drive image ingestion pipeline running real-time pathology classification and live advisory charts. | `LIVE` |
 | **Pest Detection Adapter** | Modular adapter interface for YOLO-based pest detection with real-time threshold scoring and crop-specific economic thresholds. | `DEMO` / `PLANNED` |
 | **Nutrient Deficiency Analysis** | Multimodal diagnostic engine combining NPK sensor telemetry, soil pH readings, crop growth stage tables, and visual deficiency symptoms. | `LIVE` (Rule Matrix) |
 | **Smart Irrigation Engine** | Evapotranspiration and weather-aware scheduling algorithm calculating required water volumes and transparent model reasoning (*"Soil moisture at 22%; irrigate within 2 hours"*). | `LIVE` |
@@ -282,6 +284,33 @@ Queries are evaluated against an agricultural domain knowledge base, ensuring sa
 
 ---
 
+## ⚡ Edge AI Runtime (100% Local On-Device)
+
+KrishiVision includes a dedicated, field-deployable Edge AI Runtime capable of executing **100% offline inference and autonomous decision-making** with zero cloud dependency.
+
+### Starting the Edge AI Node
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Launch edge service on port 8001
+python -m edge.app.main
+```
+
+### Running Hardware Benchmarks
+```bash
+python edge/tools/benchmark_model.py --iterations 30 --warmup 5
+```
+*Measures true capture FPS, inference latency percentiles (p50/p95), and logs verifiable results to `edge/benchmark_report.json`.*
+
+### Edge Documentation
+- [Edge Architecture Guide](docs/EDGE_ARCHITECTURE.md)
+- [Offline Mode & Resilience](docs/OFFLINE_MODE.md)
+- [Real-Time Pipeline Specification](docs/REALTIME_PIPELINE.md)
+- [Hardware Benchmarking Guide](docs/BENCHMARKING.md)
+
+---
+
 ## 🧪 Testing & Quality Assurance
 
 ### Backend Unit Tests (Pytest)
@@ -318,16 +347,3 @@ python scripts/smoke_test.py
 ## 📜 License & Attribution
 
 This project is licensed under the [MIT License](LICENSE).
-
-### Reference Attributions
-KrishiVision AI synthesizes engineering patterns and domain architectures from the open-source community:
-- [Aarpan-Garg/plant-disease-detection](https://github.com/Aarpan-Garg/plant-disease-detection): Two-stage YOLOv11 + ViT detection concept and PlantDoc dataset reference.
-- [nithu0035/smart-irrigation-system-with-weather-aware-crop-guidance](https://github.com/nithu0035/smart-irrigation-system-with-weather-aware-crop-guidance): Weather-aware soil moisture evapotranspiration logic.
-- [IamSristi/AgroSmart](https://github.com/IamSristi/AgroSmart): Agricultural IoT telemetry schema.
-- [Pratyush-Basu/Smart-Farming-AI-Platform](https://github.com/Pratyush-Basu/Smart-Farming-AI-Platform): Smart farming modular architecture and farmer assistance workflows.
-
----
-
-<p align="center">
-  Built with ❤️ for Indian Farmers & Smart Agriculture
-</p>

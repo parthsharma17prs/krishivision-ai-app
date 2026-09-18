@@ -10,6 +10,8 @@
 !.env.production.example
 *firebase-credentials*.json
 !*firebase-credentials.example.json
+token.json
+credentials*.json
 *.pem
 *.key
 *.cert
@@ -92,6 +94,7 @@ logs/
 *.log
 
 # IDE & Editor Configuration
+.kilo/
 .vscode/
 .idea/
 *.sublime-project

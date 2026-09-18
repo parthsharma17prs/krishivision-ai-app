@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Stethoscope,
@@ -12,8 +12,12 @@ import {
   Sliders,
   FileText,
   Settings,
+  Radio,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Globe,
+  LogOut,
+  Cpu
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -21,9 +25,12 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ demoMode = true }) => {
+  const navigate = useNavigate();
   const navItems = [
-    { name: 'Overview', path: '/', icon: LayoutDashboard },
+    { name: 'Overview Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'AI Plant Doctor', path: '/disease', icon: Stethoscope, badge: 'YOLOv11+ViT' },
+    { name: 'Live Image Dashboard', path: '/live-feed', icon: Radio, badge: '10s Feed' },
+    { name: 'Edge AI Station', path: '/edge', icon: Cpu, badge: 'Offline AI' },
     { name: 'Pest Scanner', path: '/pests', icon: Bug },
     { name: 'Nutrient Health', path: '/nutrients', icon: TestTube },
     { name: 'Irrigation Intelligence', path: '/irrigation', icon: Droplets },
@@ -34,6 +41,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ demoMode = true }) => {
     { name: 'Diagnostic Reports', path: '/reports', icon: FileText },
     { name: 'Settings & Status', path: '/settings', icon: Settings },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('krishivision_token');
+    localStorage.removeItem('krishivision_user');
+    navigate('/');
+  };
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-slate-900 border-r border-slate-800 h-screen sticky top-0 z-30">
@@ -63,11 +76,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ demoMode = true }) => {
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        {/* Public Landing Link */}
+        <NavLink
+          to="/"
+          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-emerald-400 hover:bg-emerald-950/40 border border-emerald-800/30 transition-all duration-200 mb-2"
+        >
+          <div className="flex items-center gap-3">
+            <Globe className="w-4 h-4 text-emerald-400" />
+            <span>Public Landing Page</span>
+          </div>
+          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">Home</span>
+        </NavLink>
+
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === '/'}
             className={({ isActive }) =>
               `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
                 isActive
@@ -89,9 +113,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ demoMode = true }) => {
         ))}
       </nav>
 
-      {/* Footer Profile Card */}
-      <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/40">
-        <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/40 flex items-center justify-between">
+      {/* Footer Profile Card & Logout */}
+      <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/40 flex flex-col gap-2">
+        <div className="p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/40 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-full bg-emerald-900/60 text-emerald-300 font-bold flex items-center justify-center border border-emerald-600/40 text-xs">
               RP
@@ -101,9 +125,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ demoMode = true }) => {
               <p className="text-[10px] text-slate-400 truncate">Indore, MP (5.0 Acres)</p>
             </div>
           </div>
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <button 
+            onClick={handleLogout}
+            title="Logout"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-700/60 transition"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>
   );
 };
+

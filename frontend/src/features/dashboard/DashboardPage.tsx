@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import { DashboardOverviewResponse } from '../../types';
 import {
@@ -13,7 +14,12 @@ import {
   ArrowUpRight,
   AlertTriangle,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Radio,
+  Camera,
+  Pill,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import {
   AreaChart,
@@ -30,20 +36,35 @@ import {
 export const DashboardPage: React.FC = () => {
   const [data, setData] = useState<DashboardOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [countdown, setCountdown] = useState<number>(5);
 
   useEffect(() => {
     loadDashboard();
+    // Auto-poll live telemetry and Agribot feed every 5 seconds for real-time responsiveness
+    const interval = setInterval(() => {
+      loadDashboard(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  const loadDashboard = async () => {
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? 5 : prev - 1));
+    }, 1000);
+    return () => clearInterval(ticker);
+  }, []);
+
+  const loadDashboard = async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await api.getDashboard('farm-indore-001');
       setData(res);
+      setLastSyncTime(new Date().toLocaleTimeString());
     } catch (err) {
       console.error('Failed to load dashboard:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -56,16 +77,18 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  const { farm, health_score, health_score_breakdown, current_telemetry, weather, irrigation_summary, recent_scans, active_alerts, active_risks } = data;
+  const { farm, health_score, health_score_breakdown, current_telemetry, weather, irrigation_summary, recent_scans, active_alerts, active_risks, latest_live_feed, live_feed_stats, telemetry_history } = data;
 
-  const moistureChartData = [
-    { time: '00:00', moisture: 32 },
-    { time: '04:00', moisture: 30 },
-    { time: '08:00', moisture: 29 },
-    { time: '12:00', moisture: 28 },
-    { time: '16:00', moisture: 26 },
-    { time: '20:00', moisture: 28 },
-  ];
+  const moistureChartData = (telemetry_history && telemetry_history.length > 0)
+    ? telemetry_history
+    : [
+        { time: '00:00', moisture: 32 },
+        { time: '04:00', moisture: 30 },
+        { time: '08:00', moisture: 29 },
+        { time: '12:00', moisture: 28 },
+        { time: '16:00', moisture: 26 },
+        { time: '20:00', moisture: 28 },
+      ];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -73,9 +96,20 @@ export const DashboardPage: React.FC = () => {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 border border-emerald-800/40 p-6 lg:p-8 shadow-xl">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Real-Time AI Farming Intelligence</span>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Real-Time AI Farming Intelligence</span>
+              </div>
+              <a
+                href="https://docs.google.com/spreadsheets/d/1NqyKaMTO9777tPJL_sjxJVxJocgogj0eby3a3Wqd6RQ/edit?gid=0#gid=0"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:text-white text-xs font-semibold transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>📊 Google Sheet Live Sync (Refreshes every 10s)</span>
+              </a>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold text-white font-sans">
               Good morning, <span className="text-emerald-400">Rajesh Patel</span>
@@ -86,18 +120,27 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Quick Stats Grid */}
-          <div className="flex items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800 backdrop-blur-md">
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-xs text-slate-400">Temperature</p>
-              <p className="text-xl font-bold text-amber-400">{current_telemetry.temperature_c}°C</p>
+          <div className="flex flex-col gap-2 bg-slate-900/90 p-4 rounded-xl border border-emerald-500/30 backdrop-blur-md min-w-[280px]">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-2">
+              <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Live Telemetry
+              </span>
+              <span className="font-mono text-slate-400 text-[10px]">Synced {lastSyncTime || 'Just now'}</span>
             </div>
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-xs text-slate-400">Soil Moisture</p>
-              <p className="text-xl font-bold text-emerald-400">{current_telemetry.soil_moisture_pct}%</p>
-            </div>
-            <div className="text-center px-3">
-              <p className="text-xs text-slate-400">Water Tank</p>
-              <p className="text-xl font-bold text-teal-400">{current_telemetry.water_tank_pct}%</p>
+            <div className="flex items-center justify-between gap-4 pt-1">
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">Soil Moisture</p>
+                <p className="text-2xl font-black text-emerald-400">{current_telemetry.soil_moisture_pct}%</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">Temperature</p>
+                <p className="text-2xl font-black text-amber-400">{current_telemetry.temperature_c}°C</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">Water Tank</p>
+                <p className="text-2xl font-black text-teal-400">{current_telemetry.water_tank_pct}%</p>
+              </div>
             </div>
           </div>
         </div>
@@ -141,19 +184,37 @@ export const DashboardPage: React.FC = () => {
 
         {/* 4 Summary Feature Cards */}
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Card 1: Disease Risk */}
+          {/* Card 1: Real-Time Live Disease Risk */}
           <div className="glass-card rounded-2xl p-5 border border-slate-800 hover:border-emerald-700/50 transition">
             <div className="flex items-center justify-between mb-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20">
                 <Stethoscope className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Moderate Risk</span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                latest_live_feed?.is_healthy
+                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                  : latest_live_feed?.severity === 'Critical'
+                  ? 'text-red-400 bg-red-500/10 border-red-500/20'
+                  : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+              }`}>
+                {latest_live_feed ? `${latest_live_feed.severity} Risk` : 'Moderate Risk'}
+              </span>
             </div>
-            <h3 className="font-semibold text-slate-100 text-sm">Disease Risk Status</h3>
-            <p className="text-xs text-slate-400 mt-1">Tomato Early Blight detected in latest leaf scan (91.4% confidence).</p>
+            <h3 className="font-semibold text-slate-100 text-sm truncate">
+              {latest_live_feed ? `${latest_live_feed.crop}: ${latest_live_feed.disease_name}` : 'Disease Risk Status'}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+              {latest_live_feed
+                ? `Live Agribot stream diagnosed with ${latest_live_feed.confidence}% confidence. ${latest_live_feed.cause || ''}`
+                : 'Continuous 10s plant pathology scanning active.'}
+            </p>
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <span>Action: Prune lower leaves</span>
-              <a href="/disease" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">Scan Leaf <ArrowUpRight className="w-3 h-3" /></a>
+              <span className="truncate max-w-[170px]">
+                {latest_live_feed?.pesticide_advisory?.should_spray ? 'Spray Alert Active' : 'Action: Routine checks'}
+              </span>
+              <Link to="/live-feed" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">
+                Live Feed <ArrowUpRight className="w-3 h-3" />
+              </Link>
             </div>
           </div>
 
@@ -168,8 +229,8 @@ export const DashboardPage: React.FC = () => {
             <h3 className="font-semibold text-slate-100 text-sm">Irrigation Recommendation</h3>
             <p className="text-xs text-slate-400 mt-1">{irrigation_summary.recommended_window} (1,400 L/acre drip).</p>
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <span>Moisture: 28% (Target 30%)</span>
-              <a href="/irrigation" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">Schedule <ArrowUpRight className="w-3 h-3" /></a>
+              <span>Moisture: {current_telemetry.soil_moisture_pct}% (Target 30%)</span>
+              <Link to="/irrigation" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">Schedule <ArrowUpRight className="w-3 h-3" /></Link>
             </div>
           </div>
 
@@ -185,7 +246,7 @@ export const DashboardPage: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">Nitrogen deficit detected during flowering stage. Foliar urea advisory generated.</p>
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
               <span>NPK Telemetry: 110-45-175</span>
-              <a href="/nutrients" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">View NPK <ArrowUpRight className="w-3 h-3" /></a>
+              <Link to="/nutrients" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">View NPK <ArrowUpRight className="w-3 h-3" /></Link>
             </div>
           </div>
 
@@ -201,11 +262,117 @@ export const DashboardPage: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">{weather.condition}, {weather.temperature_c}°C. Rain prob {weather.rain_probability_pct}%.</p>
             <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
               <span>Forecast: Sunny till Friday</span>
-              <a href="/weather" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">7-Day Forecast <ArrowUpRight className="w-3 h-3" /></a>
+              <Link to="/weather" className="text-emerald-400 font-medium hover:underline flex items-center gap-1">7-Day Forecast <ArrowUpRight className="w-3 h-3" /></Link>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Featured Real-Time Agribot Field Stream Card */}
+      {latest_live_feed && (
+        <div className="glass-card rounded-2xl p-6 border border-emerald-500/30 bg-gradient-to-r from-slate-900 via-slate-900/95 to-emerald-950/40 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <span>Real-Time Agribot Field Stream</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+                  LIVE 10s FEED
+                </span>
+              </h3>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <span className="font-mono text-emerald-400 font-semibold">T-{countdown}s sync</span>
+              <span className="hidden md:inline">•</span>
+              <span className="font-mono text-slate-400">{latest_live_feed.timestamp}</span>
+              <Link
+                to="/live-feed"
+                className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition"
+              >
+                <span>Open Live Dashboard</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            {/* Thumbnail */}
+            <div className="md:col-span-4 relative rounded-xl overflow-hidden bg-black aspect-video border border-slate-800 group shadow-md">
+              <img
+                src={latest_live_feed.image_url}
+                alt={latest_live_feed.filename}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/75 backdrop-blur text-[10px] font-mono font-bold text-emerald-300 border border-emerald-500/30">
+                {latest_live_feed.confidence}% Confidence
+              </div>
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 backdrop-blur text-[10px] font-mono text-slate-300 truncate max-w-[200px]">
+                {latest_live_feed.filename}
+              </div>
+            </div>
+
+            {/* Analysis Details */}
+            <div className="md:col-span-8 space-y-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-slate-400 text-[11px] block">Target Crop Species & Condition</span>
+                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>{latest_live_feed.crop}:</span>
+                    <span className="text-emerald-400">{latest_live_feed.disease_name}</span>
+                  </h4>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                  latest_live_feed.severity === 'Low'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : latest_live_feed.severity === 'Critical'
+                    ? 'bg-red-500/20 text-red-300 border-red-500/40 animate-pulse'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                }`}>
+                  {latest_live_feed.severity} Severity
+                </span>
+              </div>
+
+              {latest_live_feed.cause && (
+                <p className="text-slate-300 line-clamp-2">
+                  <strong className="text-slate-400 font-medium">Pathogen Cause:</strong> {latest_live_feed.cause}
+                </p>
+              )}
+
+              {/* Recommendations */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
+                    <Pill className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Pesticide Spray Advisory</span>
+                  </span>
+                  {latest_live_feed.pesticide_advisory?.should_spray ? (
+                    <p className="text-amber-300 font-semibold text-[11px]">
+                      {latest_live_feed.pesticide_advisory.chemical_pesticide?.name || 'Chemical Spray Advised'}
+                    </p>
+                  ) : (
+                    <p className="text-emerald-300 font-medium text-[11px]">
+                      No chemical pesticide required (Safe threshold)
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Cultural / Organic Action</span>
+                  </span>
+                  <p className="text-slate-200 text-[11px] truncate">
+                    {latest_live_feed.cure || 'Maintain standard organic cultural practices.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Analytics Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -260,6 +427,65 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Recent Real-Time Field Scans Section */}
+      {recent_scans && recent_scans.length > 0 && (
+        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-white text-base">Recent Real-Time Field Captures</h3>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">
+                {recent_scans.length} Scans Ingested
+              </span>
+            </div>
+            <Link
+              to="/live-feed"
+              className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+            >
+              <span>View All Scans</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {recent_scans.slice(0, 4).map((scan, idx) => (
+              <div
+                key={scan.scan_id || idx}
+                className="rounded-xl p-3 bg-slate-950/70 border border-slate-800/80 hover:border-emerald-500/40 transition space-y-2 group"
+              >
+                <div className="relative rounded-lg overflow-hidden bg-black aspect-video border border-slate-800">
+                  <img
+                    src={scan.original_image_url || '/uploads/leaf_sample.jpg'}
+                    alt={scan.detected_plant}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  />
+                  <div className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded bg-black/80 backdrop-blur text-[10px] font-mono text-emerald-400 font-bold">
+                    {scan.confidence_pct}%
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{scan.detected_plant}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                      scan.severity === 'Low'
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : scan.severity === 'Critical'
+                        ? 'bg-red-500/20 text-red-300'
+                        : 'bg-amber-500/20 text-amber-300'
+                    }`}>
+                      {scan.severity}
+                    </span>
+                  </div>
+                  <p className="font-bold text-slate-100 text-xs truncate mt-0.5">
+                    {scan.primary_disease}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

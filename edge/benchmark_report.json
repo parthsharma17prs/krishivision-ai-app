@@ -1,0 +1,21 @@
+{
+  "model_path": "/Users/macbook/Desktop/Projects/projeect_suas/models/mobilenet_v2_plant_disease.onnx",
+  "model_name": "MobileNetV2-PlantPathology-ONNX",
+  "execution_provider": "CPUExecutionProvider",
+  "iterations": 30,
+  "warmup": 5,
+  "batch_size": 1,
+  "latency_ms": {
+    "mean": 67.08,
+    "p50": 52.31,
+    "p90": 120.05,
+    "p95": 142.52,
+    "p99": 162.12,
+    "min": 35.69,
+    "max": 162.65,
+    "std": 34.86
+  },
+  "throughput_fps": 14.91,
+  "timestamp": 1789691921.857388,
+  "hardware_platform": "darwin"
+}

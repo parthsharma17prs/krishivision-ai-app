@@ -98,6 +98,11 @@ class DiseaseAnalysisResponse(BaseModel):
     affected_area_pct: Optional[float] = None
     bounding_box_url: Optional[str] = None
     heatmap_url: Optional[str] = None
+    cause: Optional[str] = None
+    cure: Optional[str] = None
+    raw_name: Optional[str] = None
+    pesticide_advisory: Optional[Dict[str, Any]] = None
+    nutrient_analysis: Optional[Dict[str, Any]] = None
     original_image_url: str
     top_3_predictions: List[PredictionItem]
     advisory_actions: List[str]
@@ -114,35 +119,65 @@ class PestAnalysisRequest(BaseModel):
 class PestDetectionItem(BaseModel):
     pest_name: str
     confidence_pct: float
-    bounding_box: List[float]  # [x_min, y_min, x_max, y_max]
+    bounding_box: List[float]  # [x, y, w, h]
+    severity: Optional[str] = "Moderate"
 
 class PestAnalysisResponse(BaseModel):
     scan_id: str
     detected_pests: List[PestDetectionItem]
+    pest_count: Optional[int] = 0
     overall_severity: str
+    economic_threshold_status: Optional[str] = "BELOW_ECONOMIC_THRESHOLD"
     recommended_control: List[str]
-    mode: str  # DEMO or REAL_MODEL
-    label_notice: str = "Demo inference — replace with trained YOLO pest model for field deployment."
+    ipm_recommendations: Optional[Dict[str, List[str]]] = None
+    annotated_image_url: Optional[str] = ""
+    mode: str
+    label_notice: str = "Real-time YOLOv8 ONNX Pest Detection Engine"
+    processing_time_ms: Optional[float] = 0.0
 
 # Nutrient Deficiency
+class NutrientDetailItem(BaseModel):
+    code: str
+    name: str
+    status: str  # OPTIMAL, MILD DEFICIT, DEFICIENT, CRITICAL DEFICIT
+    deficit_pct: float
+    current_level: float
+    target_level: float
+    unit: str
+    symptoms: Optional[str] = ""
+    prescription: Optional[str] = ""
+    foliar_spray: Optional[str] = ""
+    organic_alternative: Optional[str] = ""
+
 class NutrientAnalysisRequest(BaseModel):
     field_id: str
-    crop_name: str = "Tomato"
+    crop_name: str = "Corn (Maize)"
     growth_stage: str = "Flowering & Fruit Setting"
     soil_ph: Optional[float] = 6.8
     npk_sensor: Optional[Dict[str, float]] = Field(default_factory=lambda: {"N": 120, "P": 45, "K": 180})
-    symptoms_observed: Optional[List[str]] = Field(default_factory=lambda: ["Yellowing of lower leaves", "Stunted growth"])
+    micronutrient_sensor: Optional[Dict[str, float]] = Field(default_factory=lambda: {"Mg": 2.8, "Fe": 5.5, "Zn": 1.4})
+    symptoms_observed: Optional[List[str]] = Field(default_factory=lambda: ["Yellowing of lower leaves"])
+    image_url: Optional[str] = None
+    sample_path: Optional[str] = None
 
 class NutrientAnalysisResponse(BaseModel):
     field_id: str
     likely_deficiency: str
     confidence_pct: float
+    health_score: Optional[float] = 85.0
     deficiency_breakdown: Dict[str, float]  # N, P, K, Mg, Fe, Zn % scores
+    nutrients_detail: Optional[List[NutrientDetailItem]] = None
+    ph_bioavailability_impact: Optional[str] = ""
     supporting_evidence: List[str]
     recommended_fertilizer_advisory: List[str]
+    fertilizer_recipe: Optional[Dict[str, Optional[str]]] = None
     recommended_soil_test: str
-    mode: str = "RULE_ENGINE"
-    notice: str = "Preliminary AI assessment — confirm with lab soil or petiole tissue testing."
+    annotated_heatmap_url: Optional[str] = ""
+    original_image_url: Optional[str] = ""
+    image_cv_analysis: Optional[Dict[str, Any]] = None
+    mode: str = "HYBRID_ML_MATRIX"
+    notice: str = "Agronomic diagnostic model — verify with soil/leaf petiole testing before applying bulk heavy fertilizers."
+    processing_time_ms: Optional[float] = 0.0
 
 # Smart Irrigation
 class IrrigationAnalysisRequest(BaseModel):
@@ -251,6 +286,9 @@ class DashboardOverviewResponse(BaseModel):
     recent_scans: List[DiseaseAnalysisResponse]
     active_alerts: List[Dict[str, Any]]
     active_risks: List[RiskFactor]
+    latest_live_feed: Optional[Dict[str, Any]] = None
+    live_feed_stats: Optional[Dict[str, Any]] = None
+    telemetry_history: Optional[List[Dict[str, Any]]] = None
 
 # System & Models Status
 class ModelStatusItem(BaseModel):

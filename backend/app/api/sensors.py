@@ -5,8 +5,38 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.models import SensorReading
 from app.schemas.schemas import SensorReadingCreate, SensorReadingOut
+from app.services.google_sheets_sync import (
+    fetch_latest_google_sheet_telemetry,
+    sync_google_sheets_to_db
+)
 
 router = APIRouter(prefix="/sensors", tags=["IoT Sensors Telemetry"])
+
+@router.get("/gsheets-sync")
+def trigger_google_sheets_sync(field_id: str = "field-indore-1", db: Session = Depends(get_db)):
+    """
+    Manually or programmatically triggers live sync from Google Sheet into DB.
+    """
+    try:
+        reading = sync_google_sheets_to_db(db, field_id=field_id)
+        raw_telemetry = fetch_latest_google_sheet_telemetry()
+        return {
+            "status": "success",
+            "message": "Live Google Sheet telemetry synced successfully",
+            "telemetry": raw_telemetry,
+            "recorded_reading_id": reading.id
+        }
+    except Exception as exc:
+        return {
+            "status": "partial",
+            "message": f"Google Sheet sync warning: {str(exc)}",
+            "fallback": {
+                "temperature_c": 32.5,
+                "soil_moisture_pct": 28.0,
+                "water_tank_pct": 70.0,
+                "humidity_pct": 54.0
+            }
+        }
 
 @router.post("/readings", response_model=SensorReadingOut)
 def record_sensor_reading(reading_in: SensorReadingCreate, db: Session = Depends(get_db)):
@@ -25,9 +55,16 @@ def record_sensor_reading(reading_in: SensorReadingCreate, db: Session = Depends
 
 @router.get("/{field_id}/latest", response_model=SensorReadingOut)
 def get_latest_sensor_reading(field_id: str, db: Session = Depends(get_db)):
+    # Attempt to fetch live Google Sheet update
+    try:
+        reading = sync_google_sheets_to_db(db, field_id=field_id)
+        return reading
+    except Exception:
+        pass
+
     reading = db.query(SensorReading).filter(SensorReading.field_id == field_id).order_by(SensorReading.timestamp.desc()).first()
     if not reading:
-        # Create default demo reading if empty
+        # Create default demo reading
         reading = SensorReading(
             id="sr-demo-latest",
             field_id=field_id,
@@ -38,6 +75,7 @@ def get_latest_sensor_reading(field_id: str, db: Session = Depends(get_db)):
             timestamp=datetime.now(timezone.utc)
         )
     return reading
+
 
 @router.get("/{field_id}/history", response_model=List[SensorReadingOut])
 def get_sensor_history(field_id: str, limit: int = 24, db: Session = Depends(get_db)):

@@ -44,6 +44,58 @@ export interface PredictionItem {
   is_primary: boolean;
 }
 
+export interface ChemicalPesticide {
+  name?: string;
+  dosage?: string;
+  brand_examples?: string;
+}
+
+export interface OrganicAlternative {
+  name?: string;
+  dosage?: string;
+}
+
+export interface PesticideAdvisory {
+  status?: string;
+  should_spray?: boolean;
+  threshold_met?: boolean;
+  confidence?: number;
+  crop?: string;
+  disease_name?: string;
+  pathogen_type?: string;
+  recommendation_title?: string;
+  chemical_pesticide?: ChemicalPesticide;
+  organic_alternative?: OrganicAlternative;
+  application_guide?: string;
+  safety_notes?: string;
+  message?: string;
+  advice?: string;
+}
+
+export interface NutrientDeficiencyItem {
+  nutrient: string;
+  role?: string;
+  deficiency_cause?: string;
+  symptoms?: string;
+  supplement?: string;
+  dosage?: string;
+}
+
+export interface NutrientAnalysis {
+  status?: string;
+  ai_source?: string;
+  crop?: string;
+  disease?: string;
+  nutrients_lacking?: NutrientDeficiencyItem[];
+  nutrient_recovery_plan?: string;
+  soil_advice?: string;
+  ai_pesticide_advice?: {
+    chemical_spray?: string;
+    organic_spray?: string;
+    spray_timing?: string;
+  };
+}
+
 export interface DiseaseAnalysisResponse {
   scan_id: string;
   crop_cycle_id: string;
@@ -55,6 +107,11 @@ export interface DiseaseAnalysisResponse {
   bounding_box_url?: string;
   heatmap_url?: string;
   original_image_url: string;
+  cause?: string;
+  cure?: string;
+  raw_name?: string;
+  pesticide_advisory?: PesticideAdvisory;
+  nutrient_analysis?: NutrientAnalysis;
   top_3_predictions: PredictionItem[];
   advisory_actions: string[];
   mode: string;
@@ -67,27 +124,72 @@ export interface PestDetectionItem {
   pest_name: string;
   confidence_pct: number;
   bounding_box: number[];
+  severity?: string;
+  class_id?: number;
 }
 
 export interface PestAnalysisResponse {
   scan_id: string;
   detected_pests: PestDetectionItem[];
+  pest_count?: number;
   overall_severity: string;
+  economic_threshold_status?: string;
   recommended_control: string[];
+  ipm_recommendations?: {
+    biological?: string[];
+    cultural_mechanical?: string[];
+    chemical?: string[];
+  };
+  annotated_image_url?: string;
   mode: string;
   label_notice: string;
+  processing_time_ms?: number;
+}
+
+export interface NutrientDetailItem {
+  code: string;
+  name: string;
+  status: string;
+  deficit_pct: number;
+  current_level: number;
+  target_level: number;
+  unit: string;
+  symptoms?: string;
+  prescription?: string;
+  foliar_spray?: string;
+  organic_alternative?: string;
 }
 
 export interface NutrientAnalysisResponse {
   field_id: string;
   likely_deficiency: string;
   confidence_pct: number;
+  health_score?: number;
   deficiency_breakdown: Record<string, number>;
+  nutrients_detail?: NutrientDetailItem[];
+  ph_bioavailability_impact?: string;
   supporting_evidence: string[];
   recommended_fertilizer_advisory: string[];
+  fertilizer_recipe?: {
+    primary_chemical?: string;
+    primary_foliar?: string;
+    organic_bio?: string;
+    secondary_foliar?: string;
+  };
   recommended_soil_test: string;
+  annotated_heatmap_url?: string;
+  original_image_url?: string;
+  image_cv_analysis?: {
+    yellow_chlorosis_pct: number;
+    brown_necrotic_pct: number;
+    green_canopy_pct: number;
+    likely_visual_deficiency: string;
+    annotated_heatmap_url?: string;
+    processing_time_ms?: number;
+  };
   mode: string;
   notice: string;
+  processing_time_ms?: number;
 }
 
 export interface IrrigationAnalysisResponse {
@@ -184,6 +286,9 @@ export interface DashboardOverviewResponse {
   recent_scans: DiseaseAnalysisResponse[];
   active_alerts: any[];
   active_risks: RiskFactor[];
+  latest_live_feed?: LiveFeedRecord;
+  live_feed_stats?: LiveFeedStats;
+  telemetry_history?: Array<{ time: string; moisture: number; temperature: number; tank: number }>;
 }
 
 export interface ModelStatusItem {
@@ -192,4 +297,95 @@ export interface ModelStatusItem {
   provider: string;
   status: string;
   mode: string;
+}
+
+export interface LiveFeedPestAnalysis {
+  is_pest_detected: boolean;
+  pest_count: number;
+  overall_severity: string;
+  economic_threshold_status: string;
+  detected_pests: PestDetectionItem[];
+  ipm_recommendations: {
+    biological?: string[];
+    cultural_mechanical?: string[];
+    chemical?: string[];
+  };
+  recommended_control: string[];
+  annotated_image_url?: string;
+  processing_time_ms?: number;
+}
+
+// Live Image Feed & Google Drive Pipeline
+export interface LiveFeedRecord {
+  id: string;
+  file_id: string;
+  filename: string;
+  image_url: string;
+  timestamp: string;
+  crop: string;
+  disease_name: string;
+  raw_name?: string;
+  confidence: number;
+  severity: string;
+  is_healthy: boolean;
+  cause?: string;
+  cure?: string;
+  pesticide_advisory?: PesticideAdvisory;
+  nutrient_analysis?: NutrientAnalysis;
+  top_predictions?: PredictionItem[];
+  pest_analysis?: LiveFeedPestAnalysis;
+}
+
+export interface DiseaseHistogramItem {
+  disease: string;
+  count: number;
+  is_healthy: boolean;
+}
+
+export interface SeverityBreakdownItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface TimelineItem {
+  time: string;
+  confidence: number;
+  disease: string;
+  crop: string;
+  is_healthy: number;
+}
+
+export interface CropDistributionItem {
+  crop: string;
+  count: number;
+}
+
+export interface LiveFeedStats {
+  total_scanned: number;
+  healthy_count: number;
+  diseased_count: number;
+  spray_recommended_count: number;
+  healthy_rate_pct: number;
+  avg_confidence: number;
+  disease_histogram: DiseaseHistogramItem[];
+  severity_breakdown: SeverityBreakdownItem[];
+  timeline: TimelineItem[];
+  crop_distribution: CropDistributionItem[];
+}
+
+export interface LiveFeedStatus {
+  is_connected: boolean;
+  is_polling_active: boolean;
+  poll_interval_seconds: number;
+  target_folder_name: string;
+  target_folder_id?: string;
+  account_email?: string;
+  total_processed: number;
+  last_poll_time?: string;
+  last_error?: string;
+  is_rover_stuck?: boolean;
+  stuck_frame_count?: number;
+  stuck_location?: string;
+  stuck_alert_message?: string;
 }

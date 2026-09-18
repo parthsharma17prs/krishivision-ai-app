@@ -7,120 +7,81 @@ from PIL import Image
 from app.ml.base_adapter import BaseModelAdapter
 from app.core.config import settings
 
+from app.ml.plant_doctor import PlantDoctor
+
 class DiseaseModelAdapter(BaseModelAdapter):
     """
-    Disease Detection Model Adapter combining YOLOv11 detector concepts
-    and Vision Transformer (ViT Base Patch16 224) classifier concepts.
-    Reference: Aarpan-Garg/plant-disease-detection (PlantDoc dataset, 30 classes).
+    Disease Detection Model Adapter integrating MobileNetV2 ONNX classifier,
+    pathology database, pesticide spray recommendations, and AI agronomy nutrient analysis.
+    Reference: parthsharma17prs/Plant-Disease-Recognition-System.
     """
 
     SUPPORTED_CLASSES = [
-        "Tomato___Early_blight",
-        "Tomato___Late_blight",
-        "Tomato___Leaf_Mold",
-        "Tomato___Septoria_leaf_spot",
-        "Tomato___Spider_mites Two-spotted_spider_mite",
-        "Tomato___Target_Spot",
-        "Tomato___Yellow_Leaf_Curl_Virus",
-        "Tomato___healthy",
-        "Potato___Early_blight",
-        "Potato___Late_blight",
-        "Potato___healthy",
-        "Corn___Common_rust",
-        "Corn___Northern_Leaf_Blight",
-        "Corn___healthy",
-        "Apple___Apple_scab",
-        "Apple___Black_rot",
-        "Grape___Black_rot",
-        "Rice___Brown_spot",
-        "Cotton___Bacterial_blight"
+        "Apple Scab", "Apple with Black Rot", "Cedar Apple Rust", "Healthy Apple",
+        "Healthy Blueberry Plant", "Cherry with Powdery Mildew", "Healthy Cherry Plant",
+        "Corn (Maize) with Cercospora and Gray Leaf Spot", "Corn (Maize) with Common Rust",
+        "Corn (Maize) with Northern Leaf Blight", "Healthy Corn (Maize) Plant",
+        "Grape with Black Rot", "Grape with Esca (Black Measles)", "Grape with Isariopsis Leaf Spot",
+        "Healthy Grape Plant", "Orange with Citrus Greening", "Peach with Bacterial Spot",
+        "Healthy Peach Plant", "Bell Pepper with Bacterial Spot", "Healthy Bell Pepper Plant",
+        "Potato with Early Blight", "Potato with Late Blight", "Healthy Potato Plant",
+        "Healthy Raspberry Plant", "Healthy Soybean Plant", "Squash with Powdery Mildew",
+        "Strawberry with Leaf Scorch", "Healthy Strawberry Plant", "Tomato with Bacterial Spot",
+        "Tomato with Early Blight", "Tomato with Late Blight", "Tomato with Leaf Mold",
+        "Tomato with Septoria Leaf Spot", "Tomato with Spider Mites or Two-spotted Spider Mite",
+        "Tomato with Target Spot", "Tomato Yellow Leaf Curl Virus", "Tomato Mosaic Virus",
+        "Healthy Tomato Plant"
     ]
-
-    ADVISORY_KNOWLEDGE = {
-        "Tomato___Early_blight": {
-            "disease_name": "Tomato Early Blight (Alternaria solani)",
-            "severity": "Moderate",
-            "actions": [
-                "Remove and safely destroy infected lower leaves displaying brown concentric rings.",
-                "Apply copper-based or chlorothalonil fungicide at early onset under expert guidance.",
-                "Avoid overhead drip irrigation to keep leaf canopy dry.",
-                "Ensure proper row spacing for optimal air circulation."
-            ]
-        },
-        "Tomato___Late_blight": {
-            "disease_name": "Tomato Late Blight (Phytophthora infestans)",
-            "severity": "High",
-            "actions": [
-                "Urgent field sanitation: isolate infected plants immediately to prevent spore dispersal.",
-                "Apply protective systemic fungicide recommended by local Krishi Vigyan Kendra (KVK).",
-                "Reduce soil moisture and avoid watering late in the evening."
-            ]
-        },
-        "Tomato___Leaf_Mold": {
-            "disease_name": "Tomato Leaf Mold (Passalora fulva)",
-            "severity": "Moderate",
-            "actions": [
-                "Increase greenhouse ventilation and lower ambient humidity below 85%.",
-                "Apply suitable bio-fungicide or sulfur dusting on lower leaf surfaces."
-            ]
-        },
-        "Tomato___Yellow_Leaf_Curl_Virus": {
-            "disease_name": "Tomato Yellow Leaf Curl Virus (TYLCV)",
-            "severity": "Critical",
-            "actions": [
-                "Control whitefly vectors using yellow sticky traps and neem oil spray.",
-                "Remove viral reservoir weeds surrounding tomato field boundaries.",
-                "Use reflective silver mulches to repel whitefly vectors."
-            ]
-        },
-        "Tomato___healthy": {
-            "disease_name": "Healthy Leaf (No Pathogen Detected)",
-            "severity": "Low",
-            "actions": [
-                "Maintain current crop management practices.",
-                "Continue routine monitoring and balanced NPK fertilization."
-            ]
-        }
-    }
 
     def __init__(self):
         self.is_loaded = False
-        self.mode = "DEMO"
-        self.model_version = "YOLOv11+ViT-v1.0"
+        self.mode = "REAL_MODEL"
+        self.model_version = "MobileNetV2-PlantPathology-v1.0"
+        self.doctor = None
         self.load()
 
     def load(self) -> bool:
-        # Check if local PyTorch model weights exist
-        weight_path = os.path.join(settings.MODELS_DIR, "disease_vit_yolo.pt")
-        if os.path.exists(weight_path):
+        try:
+            self.doctor = PlantDoctor()
+            self.is_loaded = True
+            self.mode = "REAL_MODEL"
+            return True
+        except Exception as e:
+            print(f"Notice: PlantDoctor initializing with default config: {e}")
             try:
-                # Load weights if PyTorch environment is configured
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                model_path = os.path.join(base_dir, "models", "mobilenet_v2_plant_disease.onnx")
+                config_path = os.path.join(base_dir, "models", "onnx_config.json")
+                db_path = os.path.join(base_dir, "plant_disease.json")
+                self.doctor = PlantDoctor(model_path=model_path, config_path=config_path, disease_db_path=db_path)
                 self.is_loaded = True
                 self.mode = "REAL_MODEL"
                 return True
-            except Exception:
-                pass
-        
-        # Fallback to transparent DEMO adapter
-        self.is_loaded = True
-        self.mode = "DEMO"
-        return True
+            except Exception as ex2:
+                print(f"Fallback warning: {ex2}")
+                self.is_loaded = False
+                self.mode = "DEMO"
+                return False
 
     def health(self) -> Dict[str, Any]:
         return {
             "model_key": "disease",
             "loaded": self.is_loaded,
             "mode": self.mode,
-            "architecture": "YOLOv11 Detector + ViT Base Patch16 224",
-            "provider": "Aarpan-Garg/plant-disease-detection (PlantDoc)"
+            "architecture": "MobileNetV2 Plant Pathology Engine",
+            "provider": "parthsharma17prs/Plant-Disease-Recognition-System"
         }
 
     def metadata(self) -> Dict[str, Any]:
         return {
-            "supported_species": ["Tomato", "Potato", "Corn", "Apple", "Grape", "Rice", "Cotton"],
+            "supported_species": [
+                "Apple", "Blueberry", "Cherry", "Corn", "Grape", "Orange",
+                "Peach", "Pepper", "Potato", "Raspberry", "Soybean", "Squash",
+                "Strawberry", "Tomato"
+            ],
             "classes_count": len(self.SUPPORTED_CLASSES),
             "input_resolution": "224x224",
-            "pipeline": "YOLOv11 Leaf ROI Crop -> ViT Base Classifier -> Grad-CAM Heatmap"
+            "pipeline": "MobileNetV2 ONNX Classification -> Pesticide Advisory (>60%) -> Agronomy Nutrient Engine"
         }
 
     def generate_attention_heatmap_and_bbox(
@@ -133,7 +94,6 @@ class DiseaseModelAdapter(BaseModelAdapter):
         os.makedirs(output_dir, exist_ok=True)
         img = cv2.imread(image_path)
         if img is None:
-            # Fallback for invalid image path
             img = np.zeros((300, 300, 3), dtype=np.uint8)
 
         h, w, _ = img.shape
@@ -155,7 +115,7 @@ class DiseaseModelAdapter(BaseModelAdapter):
         cv2.rectangle(bbox_img, (bx, by), (bx + bw, by + bh), (0, 255, 0), 3)
         cv2.putText(
             bbox_img,
-            "Leaf ROI (YOLOv11)",
+            "Leaf ROI",
             (bx, max(30, by - 10)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -187,38 +147,93 @@ class DiseaseModelAdapter(BaseModelAdapter):
     def predict(self, image_path: str, output_dir: str = "./uploads") -> Dict[str, Any]:
         start_time = time.time()
         
-        # Generate real visual artifacts (bbox & heatmap) via OpenCV
+        # 1. Generate real visual artifacts (bbox & heatmap) via OpenCV
         bbox_file, heatmap_file, affected_pct = self.generate_attention_heatmap_and_bbox(image_path, output_dir)
 
-        # Deterministic or model prediction
-        primary_class = "Tomato___Early_blight"
-        disease_info = self.ADVISORY_KNOWLEDGE.get(primary_class, {
-            "disease_name": "Tomato Early Blight",
-            "severity": "Moderate",
-            "actions": ["Apply recommended copper fungicide.", "Maintain good leaf sanitation."]
-        })
+        # 2. Run actual model diagnosis using PlantDoctor
+        if self.doctor:
+            diag = self.doctor.diagnose(image_path, include_nutrients=True, include_pesticides=True)
+            crop_name = diag.get("crop", "Unknown")
+            disease_name = diag.get("disease_name", "Unknown Condition")
+            confidence = diag.get("confidence", 95.0)
+            cause = diag.get("cause", "")
+            cure = diag.get("cure", "")
+            pesticide_advisory = diag.get("pesticide_advisory", {})
+            nutrient_analysis = diag.get("nutrient_analysis", {})
+            top_3 = diag.get("top_predictions", [
+                {"class_name": disease_name, "confidence_pct": confidence, "is_primary": True}
+            ])
+            raw_name = diag.get("raw_name", "")
 
-        top_3 = [
-            {"class_name": disease_info["disease_name"], "confidence_pct": 91.4, "is_primary": True},
-            {"class_name": "Tomato Late Blight", "confidence_pct": 5.2, "is_primary": False},
-            {"class_name": "Tomato Septoria Leaf Spot", "confidence_pct": 2.1, "is_primary": False}
-        ]
+            # Determine severity
+            if "healthy" in disease_name.lower():
+                severity = "Low"
+            elif any(crit in disease_name.lower() for crit in ["late blight", "virus", "greening", "bacterial"]):
+                severity = "Critical" if "virus" in disease_name.lower() else "High"
+            else:
+                severity = "Moderate"
 
+            # Formulate structured advisory actions
+            advisory_actions = []
+            if cure and cure.strip() and cure.strip() != "None.":
+                advisory_actions.append(cure.strip())
+            if pesticide_advisory.get("application_guide"):
+                advisory_actions.append(pesticide_advisory["application_guide"])
+            if pesticide_advisory.get("safety_notes"):
+                advisory_actions.append(pesticide_advisory["safety_notes"])
+            if nutrient_analysis.get("nutrient_recovery_plan"):
+                advisory_actions.append(nutrient_analysis["nutrient_recovery_plan"])
+            if not advisory_actions:
+                advisory_actions = [
+                    "Maintain standard organic mulch and balanced irrigation.",
+                    "Continue routine monitoring for any early signs of foliar stress."
+                ]
+
+            processing_time = int((time.time() - start_time) * 1000)
+
+            return {
+                "detected_plant": crop_name,
+                "primary_disease": disease_name,
+                "raw_name": raw_name,
+                "confidence_pct": confidence,
+                "severity": severity,
+                "affected_area_pct": affected_pct,
+                "bounding_box_filename": bbox_file,
+                "heatmap_filename": heatmap_file,
+                "top_3_predictions": top_3,
+                "advisory_actions": advisory_actions,
+                "cause": cause,
+                "cure": cure,
+                "pesticide_advisory": pesticide_advisory,
+                "nutrient_analysis": nutrient_analysis,
+                "mode": self.mode,
+                "model_version": self.model_version,
+                "processing_time_ms": processing_time
+            }
+
+        # Fallback if model not loaded
         processing_time = int((time.time() - start_time) * 1000)
-
         return {
             "detected_plant": "Tomato",
-            "primary_disease": disease_info["disease_name"],
+            "primary_disease": "Tomato Early Blight",
+            "raw_name": "Tomato___Early_blight",
             "confidence_pct": 91.4,
-            "severity": disease_info["severity"],
+            "severity": "Moderate",
             "affected_area_pct": affected_pct,
             "bounding_box_filename": bbox_file,
             "heatmap_filename": heatmap_file,
-            "top_3_predictions": top_3,
-            "advisory_actions": disease_info["actions"],
-            "mode": self.mode,
+            "top_3_predictions": [
+                {"class_name": "Tomato Early Blight", "confidence_pct": 91.4, "is_primary": True}
+            ],
+            "advisory_actions": ["Apply recommended copper fungicide.", "Maintain good leaf sanitation."],
+            "cause": "Alternaria solani",
+            "cure": "Apply copper-based fungicide.",
+            "pesticide_advisory": {},
+            "nutrient_analysis": {},
+            "mode": "DEMO",
             "model_version": self.model_version,
             "processing_time_ms": processing_time
         }
 
 disease_adapter = DiseaseModelAdapter()
+

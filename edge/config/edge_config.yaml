@@ -1,0 +1,52 @@
+# KrishiVision AI — Edge Runtime Configuration
+# Profile determines execution constraints and hardware accelerators
+device_profile: "laptop"  # laptop, jetson, pi, mobile
+
+service:
+  host: "0.0.0.0"
+  port: 8001
+  debug: false
+  name: "KrishiVision-Edge-Node-01"
+  field_id: "field-indore-1"
+  farm_id: "farm-indore-001"
+
+camera:
+  source: 0                 # 0 for default webcam, or RTSP string, or path to video file
+  target_capture_fps: 30.0  # Decoupled capture thread rate
+  target_inference_fps: 8.0 # Inference execution target rate (measured, non-fabricated)
+  frame_skip: 3             # Process 1 frame every N captured frames
+  width: 640
+  height: 480
+  confidence_threshold: 60.0 # Strict threshold: below this reports LOW_CONFIDENCE / UNCERTAIN
+
+models:
+  disease_model_path: "models/mobilenet_v2_plant_disease.onnx"
+  disease_config_path: "models/onnx_config.json"
+  disease_db_path: "models/plant_disease.json"
+  pest_model_path: "models/yolov8_pest.onnx"   # Optional trained weights
+  enable_cuda: false       # Set true on NVIDIA Jetson with CUDA ONNX runtime
+
+sensors:
+  provider: "simulator"    # "simulator", "esp32_http", "serial", "mqtt"
+  serial_port: "/dev/ttyUSB0"
+  serial_baud: 115200
+  poll_interval_seconds: 5.0
+  simulator:
+    diurnal_cycle: true
+    soil_drydown_rate: 0.1 # % per hour
+
+decision:
+  critical_soil_moisture_pct: 30.0
+  high_temperature_threshold_c: 35.0
+  heat_wave_threshold_c: 38.0
+  drought_moisture_threshold_c: 22.0
+
+storage:
+  db_path: "edge/edge.db"
+  max_local_records: 10000
+
+sync:
+  cloud_backend_url: "http://localhost:8000/api/edge/sync"
+  sync_interval_seconds: 15.0
+  batch_size: 20
+  offline_first: true

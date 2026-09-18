@@ -5,15 +5,16 @@ import {
   Stethoscope,
   Droplets,
   CloudSun,
-  Bot
+  Bot,
+  Globe
 } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
   const items = [
-    { name: 'Overview', path: '/', icon: LayoutDashboard },
+    { name: 'Home', path: '/', icon: Globe },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Doctor', path: '/disease', icon: Stethoscope },
     { name: 'Irrigate', path: '/irrigation', icon: Droplets },
-    { name: 'Weather', path: '/weather', icon: CloudSun },
     { name: 'Assistant', path: '/assistant', icon: Bot },
   ];
 

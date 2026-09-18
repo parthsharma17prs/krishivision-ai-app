@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_TYPE: str = "sqlite"  # "sqlite", "postgres", or "firebase"
-    DATABASE_URL: str = "sqlite:///./krishivision.db"
+    DATABASE_URL: str = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '../../krishivision.db'))}"
     
     # Firebase Setup
     FIREBASE_CREDENTIALS_PATH: Optional[str] = "./firebase-credentials.json"
