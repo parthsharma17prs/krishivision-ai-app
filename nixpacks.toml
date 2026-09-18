@@ -1,8 +1,5 @@
 providers = ["python", "node"]
 
-[phases.setup]
-nixPkgs = ["python311", "nodejs_20"]
-
 [phases.install]
 cmds = [
   "cd backend && pip install -r requirements.txt",
@@ -11,4 +8,5 @@ cmds = [
 
 [start]
 cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+
 
