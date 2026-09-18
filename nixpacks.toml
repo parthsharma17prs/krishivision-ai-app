@@ -1,11 +1,14 @@
-[providers]
 providers = ["python", "node"]
 
-[build]
+[phases.setup]
+nixPkgs = ["python311", "nodejs_20"]
+
+[phases.install]
 cmds = [
   "cd backend && pip install -r requirements.txt",
-  "cd frontend && npm install --legacy-peer-deps && npm run build"
+  "cd frontend && npm install && npm run build"
 ]
 
 [start]
-cmd = "cd backend && python ../data/seeds/seed_demo_data.py && uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+
