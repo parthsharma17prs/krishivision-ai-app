@@ -69,9 +69,6 @@ class LiveFeedService:
         # Try connecting on startup
         self._connect_drive()
 
-        # Insert 5 duplicate frames on startup to simulate stuck rover for testing
-        self.insert_stuck_rover_duplicate_frames()
-
         # Start background polling thread
         self.thread = threading.Thread(target=self._background_poll_loop, daemon=True)
         self.thread.start()
@@ -98,9 +95,21 @@ class LiveFeedService:
         if os.path.exists(self.history_file):
             try:
                 with open(self.history_file, "r", encoding="utf-8") as f:
-                    self.records = json.load(f)
+                    raw_records = json.load(f)
+                    
+                    # Deduplicate history based on filename / image_url
+                    unique_records = []
+                    seen_keys = set()
+                    for r in raw_records:
+                        key = r.get("filename") or r.get("image_url") or r.get("file_id")
+                        if key and key not in seen_keys:
+                            seen_keys.add(key)
+                            unique_records.append(r)
+
+                    self.records = unique_records
                     self.processed_file_ids = {r["file_id"] for r in self.records if "file_id" in r}
-                print(f"📜 [LiveFeedService] Loaded {len(self.records)} scan records from history.")
+                print(f"📜 [LiveFeedService] Loaded {len(self.records)} unique scan records from history.")
+                self._save_history()
             except Exception as e:
                 print(f"⚠️ [LiveFeedService] Could not read history file: {e}")
                 self.records = []
@@ -108,8 +117,17 @@ class LiveFeedService:
 
     def _save_history(self):
         try:
+            # Ensure saved history is deduplicated
+            unique_records = []
+            seen_keys = set()
+            for r in self.records:
+                key = r.get("filename") or r.get("image_url") or r.get("file_id")
+                if key and key not in seen_keys:
+                    seen_keys.add(key)
+                    unique_records.append(r)
+
             with open(self.history_file, "w", encoding="utf-8") as f:
-                json.dump(self.records, f, indent=2)
+                json.dump(unique_records, f, indent=2)
         except Exception as e:
             print(f"⚠️ [LiveFeedService] Could not save history: {e}")
 
