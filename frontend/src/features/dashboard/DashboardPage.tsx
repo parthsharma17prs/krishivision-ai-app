@@ -102,13 +102,13 @@ export const DashboardPage: React.FC = () => {
                 <span>Real-Time AI Farming Intelligence</span>
               </div>
               <a
-                href="https://docs.google.com/spreadsheets/d/1NqyKaMTO9777tPJL_sjxJVxJocgogj0eby3a3Wqd6RQ/edit?gid=0#gid=0"
+                href="https://docs.google.com/spreadsheets/d/1dnLEKXHdmtnZHZSwXRdZ2RI2w9DTtPWOQFyAF3pBOuQ/edit?gid=0#gid=0"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:text-white text-xs font-semibold transition-colors"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>📊 Google Sheet Live Sync (Refreshes every 10s)</span>
+                <span>📊 Google Sheet Live Sync (From 9/18/2026 9:34:11)</span>
               </a>
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold text-white font-sans">

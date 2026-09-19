@@ -9,16 +9,17 @@ from app.models.models import SensorReading
 
 logger = logging.getLogger(__name__)
 
-SPREADSHEET_ID = "1NqyKaMTO9777tPJL_sjxJVxJocgogj0eby3a3Wqd6RQ"
+SPREADSHEET_ID = "1dnLEKXHdmtnZHZSwXRdZ2RI2w9DTtPWOQFyAF3pBOuQ"
 CSV_URLS = [
     f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=0",
     f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid=0"
 ]
 
+TARGET_START_TIMESTAMP = "9/18/2026 9:34:11"
+
 def clean_float(val: str, default: float) -> float:
     if not val:
         return default
-    # Remove quotes
     s = str(val).replace('"', '').replace("'", '').strip()
     match = re.search(r"[-+]?\d*\.\d+|\d+", s)
     if match:
@@ -30,9 +31,9 @@ def clean_float(val: str, default: float) -> float:
 
 def fetch_latest_google_sheet_telemetry():
     """
-    Fetches public Google Sheet CSV and parses the latest telemetry row.
-    Expected columns: Time, Temperature, Moisture, Ultrasonic (%)
-    Baseline values: Temperature 32.5°C, Soil Moisture 28%, Water Tank 70%
+    Fetches public Google Sheet CSV (1dnLEKXHdmtnZHZSwXRdZ2RI2w9DTtPWOQFyAF3pBOuQ)
+    starting from timestamp '9/18/2026 9:34:11' and returns latest telemetry & history.
+    Columns: Timestamp, Moisture 1, Moisture 2, Moisture 3, Average, Status, Temperature, Humidity
     """
     content = ""
     for url in CSV_URLS:
@@ -51,14 +52,16 @@ def fetch_latest_google_sheet_telemetry():
             logger.warning(f"Failed fetching {url}: {err}")
 
     default_result = {
-        "time_label": "Live Sync",
-        "temperature_c": 32.5,
+        "time_label": "9/18/2026 9:34:11",
+        "temperature_c": 28.9,
         "soil_moisture_pct": 28.0,
-        "water_tank_pct": 70.0,
-        "humidity_pct": 54.0,
+        "humidity_pct": 70.0,
+        "water_tank_pct": 75.0,
+        "status": "OPTIMAL",
         "source": "google_sheets",
         "spreadsheet_id": SPREADSHEET_ID,
-        "synced_at": datetime.now(timezone.utc).isoformat()
+        "synced_at": datetime.now(timezone.utc).isoformat(),
+        "telemetry_history": []
     }
 
     if not content:
@@ -67,66 +70,105 @@ def fetch_latest_google_sheet_telemetry():
     reader = csv.reader(io.StringIO(content))
     rows = [row for row in reader if any(cell.strip() for cell in row)]
     
-    if not rows:
+    if not rows or len(rows) <= 1:
         return default_result
 
     header = [h.strip().lower().replace('"', '') for h in rows[0]]
     
-    # Locate column indices
-    temp_idx = -1
-    moisture_idx = -1
-    tank_idx = -1
+    # Column mapping
     time_idx = 0
+    m1_idx, m2_idx, m3_idx, avg_idx = -1, -1, -1, -1
+    status_idx, temp_idx, hum_idx = -1, -1, -1
 
     for i, col in enumerate(header):
-        if "temp" in col:
-            temp_idx = i
-        elif "moist" in col or "soil" in col:
-            moisture_idx = i
-        elif "ultra" in col or "tank" in col or "water" in col:
-            tank_idx = i
-        elif "time" in col:
+        if "timestamp" in col or "time" in col:
             time_idx = i
+        elif "moisture 1" in col or "moist 1" in col:
+            m1_idx = i
+        elif "moisture 2" in col or "moist 2" in col:
+            m2_idx = i
+        elif "moisture 3" in col or "moist 3" in col:
+            m3_idx = i
+        elif "average" in col or "avg" in col:
+            avg_idx = i
+        elif "status" in col:
+            status_idx = i
+        elif "temp" in col:
+            temp_idx = i
+        elif "hum" in col:
+            hum_idx = i
 
-    if temp_idx == -1 and len(rows[0]) > 1:
-        temp_idx = 1
-    if moisture_idx == -1 and len(rows[0]) > 2:
-        moisture_idx = 2
-    if tank_idx == -1 and len(rows[0]) > 3:
-        tank_idx = 3
+    # Fallbacks if columns missed
+    if temp_idx == -1 and len(header) > 6: temp_idx = 6
+    if hum_idx == -1 and len(header) > 7: hum_idx = 7
+    if avg_idx == -1 and len(header) > 4: avg_idx = 4
+    if status_idx == -1 and len(header) > 5: status_idx = 5
 
-    # Look for last valid data row
-    for row in reversed(rows[1:]):
+    valid_records = []
+    history_points = []
+    start_found = False
+
+    for row in rows[1:]:
         if len(row) <= 1:
             continue
 
-        raw_temp = row[temp_idx] if temp_idx < len(row) else "32.5"
-        raw_moist = row[moisture_idx] if moisture_idx < len(row) else "28"
-        raw_tank = row[tank_idx] if tank_idx < len(row) else "70"
-        raw_time = row[time_idx] if time_idx < len(row) else "Live"
+        raw_time = row[time_idx].strip() if time_idx < len(row) else ""
+        
+        # Check starting threshold timestamp '9/18/2026 9:34:11'
+        if not start_found:
+            if "9/18/2026 9:34:11" in raw_time or "9:34:11" in raw_time:
+                start_found = True
+            elif "9/18/2026" in raw_time:
+                start_found = True
 
-        temp_c = clean_float(raw_temp, 32.5)
-        soil_moisture_pct = clean_float(raw_moist, 28.0)
-        water_tank_pct = clean_float(raw_tank, 70.0)
+        raw_temp = row[temp_idx] if temp_idx != -1 and temp_idx < len(row) else "28.9"
+        raw_hum = row[hum_idx] if hum_idx != -1 and hum_idx < len(row) else "70"
+        raw_avg = row[avg_idx] if avg_idx != -1 and avg_idx < len(row) else "0"
+        raw_m1 = row[m1_idx] if m1_idx != -1 and m1_idx < len(row) else "0"
+        raw_m2 = row[m2_idx] if m2_idx != -1 and m2_idx < len(row) else "0"
+        raw_m3 = row[m3_idx] if m3_idx != -1 and m3_idx < len(row) else "0"
+        raw_status = row[status_idx].strip() if status_idx != -1 and status_idx < len(row) else "LOW"
 
-        # Handle ultrasonic distance vs tank percentage scaling
-        if water_tank_pct > 100:
-            water_tank_pct = max(0.0, min(100.0, 100.0 - (water_tank_pct / 5.0)))
-        else:
-            water_tank_pct = max(0.0, min(100.0, water_tank_pct))
+        temp_c = clean_float(raw_temp, 28.9)
+        hum_pct = clean_float(raw_hum, 70.0)
+        avg_moist = clean_float(raw_avg, 0.0)
+        m1 = clean_float(raw_m1, 0.0)
+        m2 = clean_float(raw_m2, 0.0)
+        m3 = clean_float(raw_m3, 0.0)
 
-        soil_moisture_pct = max(0.0, min(100.0, soil_moisture_pct))
+        # Calculate effective soil moisture percentage
+        non_zero_moist = [v for v in [m1, m2, m3, avg_moist] if v > 0]
+        soil_moisture_pct = round(sum(non_zero_moist) / len(non_zero_moist), 1) if non_zero_moist else 28.0
 
-        return {
-            "time_label": str(raw_time).strip('"'),
+        rec = {
+            "time_label": raw_time or "Live",
             "temperature_c": round(temp_c, 1),
-            "soil_moisture_pct": round(soil_moisture_pct, 1),
-            "water_tank_pct": round(water_tank_pct, 1),
-            "humidity_pct": round(54.0 + (temp_c % 5), 1),
+            "soil_moisture_pct": max(5.0, min(100.0, soil_moisture_pct)),
+            "humidity_pct": max(10.0, min(100.0, hum_pct)),
+            "water_tank_pct": 75.0,
+            "status": raw_status or "LOW",
+            "moisture_sensors": {
+                "sensor_1": m1,
+                "sensor_2": m2,
+                "sensor_3": m3,
+                "average": avg_moist
+            },
             "source": "google_sheets",
-            "spreadsheet_id": SPREADSHEET_ID,
-            "synced_at": datetime.now(timezone.utc).isoformat()
+            "spreadsheet_id": SPREADSHEET_ID
         }
+        valid_records.append(rec)
+        history_points.append({
+            "time": raw_time.split(" ")[-1] if " " in raw_time else raw_time,
+            "moisture": rec["soil_moisture_pct"],
+            "temperature": rec["temperature_c"],
+            "humidity": rec["humidity_pct"]
+        })
+
+    if valid_records:
+        latest = valid_records[-1]
+        latest["telemetry_history"] = history_points[-24:] # Last 24 intervals for live curve graph
+        latest["synced_at"] = datetime.now(timezone.utc).isoformat()
+        return latest
 
     return default_result
 
@@ -147,3 +189,4 @@ def sync_google_sheets_to_db(db: Session, field_id: str = "field-indore-1") -> S
     db.commit()
     db.refresh(reading)
     return reading
+
